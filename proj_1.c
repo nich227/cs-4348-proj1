@@ -184,12 +184,12 @@ int main(int argc, char *argv[])
 			}
 
 			//Get next instruction from memory
-
 			char tmp_buffer[10];
 			snprintf(tmp_buffer, 10, "r%d", pc);
 			write(cpuToMem[1], &tmp_buffer, 5);
 			read(memToCpu[0], &inst, 4);
 
+			//Check if jump instruction is used
 			bool hasJumped = false;
 
 			if (inst[0] != '\0')
@@ -270,12 +270,17 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
+					//Check value of port
 					if (atoi(read_mem) == 1)
 						printf("%d", ac);
 					if (atoi(read_mem) == 2)
 						printf("%c", ac);
 						
 				}
+
+				//AddX
+				if(atoi(inst) == 10)
+					ac += x;
 
 				//AddY
 				if(atoi(inst) == 11)
@@ -315,8 +320,6 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					char tmp_yeet[25];
-
 					if (ac == 0)
 					{
 						pc = atoi(read_mem);
@@ -327,6 +330,10 @@ int main(int argc, char *argv[])
 				//IncX
 				if(atoi(inst) == 25)
 					x++;
+
+				//End
+				if(atoi(inst) == 50)
+					return 0;
 
 				//Advance to next instruction if no jumps done
 				if (!hasJumped)
