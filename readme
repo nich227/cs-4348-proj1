@@ -1,0 +1,12 @@
+--FILES--
+proj_1.c: The program, which includes both CPU and memory.
+sample5.txt: The sample input I created.
+readme: This file! Tells you what the files are and their purpose.
+summary.docx: A summary of the project and what I learned.
+
+--HOW TO RUN--
+1. Open a terminal session, go to the directory where proj_1.c is located, and type:
+    gcc proj_1.c -std=gnu99
+2. To execute, run:
+    ./a.out <filename> <timer>
+    where timer is an value for the number of instructions to run before an interrupt occurs.

@@ -1,0 +1,68 @@
+1	//Load 10
+10
+14	//CopyToX
+8	//Get
+27	//Push
+26	//DecX
+15  //CopyFromX
+22	//JNE 3
+3
+
+1	//Load 0
+0
+14	//CopyToX
+4	//LoadIdxX51
+51
+21  //JE 20
+20
+27  //Push
+25  //IncX
+20  //Jump 12
+12
+
+1   //Load 6
+6
+14  //CopyToX
+28  //Pop
+9   //Put 
+2
+26  //DecX
+15  //CopyFromX
+22  //JNE 23
+23
+
+1   //Load 10
+10
+9   //Put
+2
+
+1   //Load 10
+10
+14  //CopyToX
+28  //Pop
+9   //Put 
+1
+1   //Load 10
+10
+9   //Put
+2
+26  //DecX
+15  //CopyFromX
+22  //JNE 37
+37
+
+2   //Can't touch this!
+1337
+
+50
+
+110	//O-z-b-i-r-n
+114
+105
+98
+122
+79
+0
+
+.1000
+30
