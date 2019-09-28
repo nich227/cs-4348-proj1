@@ -37,6 +37,19 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	//Get filename from arguments
+	char *filename = argv[1];
+
+	//Open file
+	FILE *file = fopen(filename, "r");
+	
+	//File doesn't exist
+	if (!file)
+	{
+		printf("\nERROR: %s not found!\n", filename);
+		return 1;
+	}
+
 	//Forking process into CPU and memory
 	int pid = fork();
 
@@ -50,9 +63,6 @@ int main(int argc, char *argv[])
 	//Memory
 	else if (pid == 0)
 	{
-		//Get filename from arguments
-		char *filename = argv[1];
-
 		//Integer entries
 		int mem_arr[2000];
 
@@ -61,17 +71,9 @@ int main(int argc, char *argv[])
 		int sys_prgm = 1000;
 
 		//Read in file line by line
-		FILE *file = fopen(filename, "r");
 		char *f_line;
 		size_t f_len = 0;
 		ssize_t f_read;
-
-		//File doesn't exist
-		if (!file)
-		{
-			printf("\nERROR: %s not found!\n", filename);
-			return 1;
-		}
 
 		//Read each line from file and extract the commands/jumps
 		int cur_ptr = usr_prgm;
@@ -146,6 +148,10 @@ int main(int argc, char *argv[])
 
 				mem_arr[atoi(input)] = atoi(write_val);
 			}
+
+			//Exit
+			if (command == 'e')
+				exit(0);
 		}
 	}
 
@@ -190,7 +196,7 @@ int main(int argc, char *argv[])
 			bool hasJumped = false;
 
 			//Check if there is another interrupt scheduled while this interrupt is going on
-			if(intr && inst_counter > 0 && (inst_counter % timer) == 0)
+			if (intr && inst_counter > 0 && (inst_counter % timer) == 0)
 				num_intr_waiting++;
 
 			//Check for timer interrupt
@@ -647,6 +653,9 @@ int main(int argc, char *argv[])
 				//End
 				else if (ir == 50)
 				{
+					//Signal memory to exit
+					write(cpuToMem[1], "e", 5);
+
 					//Close all pipes
 					close(cpuToMem[0]);
 					close(cpuToMem[1]);
