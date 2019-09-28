@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
 	//Filename and interrupt
 	char *filename = argv[1];
-	int interrupt = *argv[2];
+	int timer = *argv[2];
 
 	//Creating pipes for sending data from CPU to memory and vice versa
 	int cpuToMem[2]; //Pipe for cpu to memory
@@ -166,7 +166,6 @@ int main(int argc, char *argv[])
 		int sys_stack_top = 1999;
 
 		//Interrupts
-		int timer = 0;
 		int inst_counter = 0;
 		bool usr = true;
 		bool intr = false;
@@ -513,11 +512,13 @@ int main(int argc, char *argv[])
 				//Int
 				else if (ir == 29)
 				{
+					
 				}
 
 				//IRet
 				else if (ir == 30)
 				{
+					
 				}
 
 				//End
@@ -536,6 +537,8 @@ int main(int argc, char *argv[])
 				//Advance to next instruction if no jumps done
 				if (!hasJumped)
 					pc++;
+
+				inst_counter++;
 			}
 		}
 	}
