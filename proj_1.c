@@ -225,11 +225,17 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					//Load addr into ac
-					snprintf(tmp_buffer, 10, "r%d", atoi(read_mem));
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+					//Attempting to load from system memory
+					if (atoi(read_mem) > 999)
+						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					else
+					{
+						//Load addr into ac
+						snprintf(tmp_buffer, 10, "r%d", atoi(read_mem));
+						write(cpuToMem[1], &tmp_buffer, 5);
+						read(memToCpu[0], &read_mem, 4);
+						ac = atoi(read_mem);
+					}
 				}
 
 				//LoadInd addr
@@ -243,17 +249,29 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					//Load addr into ac
-					snprintf(tmp_buffer, 10, "r%d", atoi(read_mem));
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+					//Attempting to load from system memory
+					if (atoi(read_mem) > 999)
+						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					else
+					{
+						//Load addr into ac
+						snprintf(tmp_buffer, 10, "r%d", atoi(read_mem));
+						write(cpuToMem[1], &tmp_buffer, 5);
+						read(memToCpu[0], &read_mem, 4);
+						ac = atoi(read_mem);
 
-					//Load ac address into ac
-					snprintf(tmp_buffer, 10, "r%d", ac);
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+						//Attempting to load from system memory
+						if (atoi(read_mem) > 999)
+							printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+						else
+						{
+							//Load ac address into ac
+							snprintf(tmp_buffer, 10, "r%d", ac);
+							write(cpuToMem[1], &tmp_buffer, 5);
+							read(memToCpu[0], &read_mem, 4);
+							ac = atoi(read_mem);
+						}
+					}
 				}
 
 				//LoadIdxX addr
@@ -267,11 +285,17 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					//Load x + addr into ac
-					snprintf(tmp_buffer, 10, "r%d", x + atoi(read_mem));
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+					//Attempting to load from system memory
+					if (x + atoi(read_mem) > 999)
+						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					else
+					{
+						//Load x + addr into ac
+						snprintf(tmp_buffer, 10, "r%d", x + atoi(read_mem));
+						write(cpuToMem[1], &tmp_buffer, 5);
+						read(memToCpu[0], &read_mem, 4);
+						ac = atoi(read_mem);
+					}
 				}
 
 				//LoadIdxY addr
@@ -285,11 +309,17 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					//Load y + addr into ac
-					snprintf(tmp_buffer, 10, "r%d", y + atoi(read_mem));
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+					//Attempting to load from system memory
+					if (y + atoi(read_mem) > 999)
+						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					else
+					{
+						//Load y + addr into ac
+						snprintf(tmp_buffer, 10, "r%d", y + atoi(read_mem));
+						write(cpuToMem[1], &tmp_buffer, 5);
+						read(memToCpu[0], &read_mem, 4);
+						ac = atoi(read_mem);
+					}
 				}
 
 				//LoadSpX
@@ -297,11 +327,17 @@ int main(int argc, char *argv[])
 				{
 					char read_mem[5];
 
-					//Load sp + x into ac
-					snprintf(tmp_buffer, 10, "r%d", sp + 1 + x);
-					write(cpuToMem[1], &tmp_buffer, 5);
-					read(memToCpu[0], &read_mem, 4);
-					ac = atoi(read_mem);
+					//Attempting to load from system memory
+					if (x + sp > 999)
+						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					else
+					{
+						//Load sp + x into ac
+						snprintf(tmp_buffer, 10, "r%d", sp + 1 + x);
+						write(cpuToMem[1], &tmp_buffer, 5);
+						read(memToCpu[0], &read_mem, 4);
+						ac = atoi(read_mem);
+					}
 				}
 
 				//Store addr
@@ -512,13 +548,11 @@ int main(int argc, char *argv[])
 				//Int
 				else if (ir == 29)
 				{
-					
 				}
 
 				//IRet
 				else if (ir == 30)
 				{
-					
 				}
 
 				//End
