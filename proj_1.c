@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <time.h>
 
 int main(int argc, char *argv[])
 {
@@ -22,6 +23,9 @@ int main(int argc, char *argv[])
 		printf("ERROR: This program requires 2 arguments to operate.\n1. Input program filename\n2. Timer interrupt value\n");
 		exit(1);
 	}
+
+	//Seed for random number
+	srand(time(0));
 
 	//Filename and interrupt
 	char *filename = argv[1];
@@ -55,7 +59,7 @@ int main(int argc, char *argv[])
 
 		//User and system program
 		int usr_prgm = 0;
-		int sys_call = 1000;
+		int sys_prgm = 1000;
 
 		//Read in file line by line
 		FILE *file = fopen(filename, "r");
@@ -72,13 +76,12 @@ int main(int argc, char *argv[])
 
 		//Read each line from file and extract the commands/jumps
 		int cur_ptr = usr_prgm;
-		while (f_read = getline(&f_line, &f_len, file) > 0)
+		while ((f_read = getline(&f_line, &f_len, file)) > 0)
 		{
 
 			int cur_char = 0;
 
 			char tmp_command[6] = {'\0', '\0', '\0', '\0', '\0', '\0'};
-			int jmp_to_address = -1;
 
 			//If it's a jump to address
 			if (f_line[0] == '.')
@@ -95,7 +98,7 @@ int main(int argc, char *argv[])
 			}
 
 			//If the input line needs to be stored in memory
-			if (tmp_command[0] != '\0')
+			if (tmp_command[0] == '.' || isdigit(tmp_command[0]))
 			{
 				//If it's a jump to memory location
 				if (tmp_command[0] == '.')
@@ -114,8 +117,6 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-
-		cur_ptr = usr_prgm;
 
 		//Listen for CPU read/write requests
 		while (true)
@@ -139,10 +140,11 @@ int main(int argc, char *argv[])
 			}
 
 			//Do write operation
-			if (input[0] == 'w')
+			if (command == 'w')
 			{
 				char write_val[5];
 				read(cpuToMem[0], &write_val, 4);
+
 				mem_arr[atoi(input)] = atoi(write_val);
 			}
 		}
@@ -152,8 +154,8 @@ int main(int argc, char *argv[])
 	else
 	{
 		//Registers
-		int pc = 0;
-		int sp = 999;
+		int pc;
+		int sp;
 		int ir;
 		int ac;
 		int x;
@@ -169,7 +171,11 @@ int main(int argc, char *argv[])
 		bool usr = true;
 		bool intr = false;
 
+		//Default values
 		char inst[5] = {'\0', '\0', '\0', '\0', '\0'};
+		pc = 0;
+		sp = usr_stack_top;
+
 		//Executing instructions
 		while (true)
 		{
@@ -184,7 +190,7 @@ int main(int argc, char *argv[])
 			}
 
 			//Get next instruction from memory
-			char tmp_buffer[10];
+			char tmp_buffer[10] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
 			snprintf(tmp_buffer, 10, "r%d", pc);
 			write(cpuToMem[1], &tmp_buffer, 5);
 			read(memToCpu[0], &inst, 4);
@@ -192,10 +198,14 @@ int main(int argc, char *argv[])
 			//Check if jump instruction is used
 			bool hasJumped = false;
 
+			//If the instruction does not return empty
 			if (inst[0] != '\0')
 			{
+				//Load instruction into ir
+				ir = atoi(inst);
+
 				//Load val
-				if (atoi(inst) == 1)
+				if (ir == 1)
 				{
 					char read_mem[5];
 					pc++;
@@ -206,7 +216,7 @@ int main(int argc, char *argv[])
 				}
 
 				//Load addr
-				if (atoi(inst) == 2)
+				else if (ir == 2)
 				{
 					char read_mem[5];
 					pc++;
@@ -223,8 +233,32 @@ int main(int argc, char *argv[])
 					ac = atoi(read_mem);
 				}
 
+				//LoadInd addr
+				else if (ir == 3)
+				{
+					char read_mem[5];
+					pc++;
+
+					//Read next line for addr
+					snprintf(tmp_buffer, 10, "r%d", pc);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Load addr into ac
+					snprintf(tmp_buffer, 10, "r%d", atoi(read_mem));
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+					ac = atoi(read_mem);
+
+					//Load ac address into ac
+					snprintf(tmp_buffer, 10, "r%d", ac);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+					ac = atoi(read_mem);
+				}
+
 				//LoadIdxX addr
-				if (atoi(inst) == 4)
+				else if (ir == 4)
 				{
 					char read_mem[5];
 					pc++;
@@ -242,7 +276,7 @@ int main(int argc, char *argv[])
 				}
 
 				//LoadIdxY addr
-				if(atoi(inst) == 5)
+				else if (ir == 5)
 				{
 					char read_mem[5];
 					pc++;
@@ -259,8 +293,41 @@ int main(int argc, char *argv[])
 					ac = atoi(read_mem);
 				}
 
+				//LoadSpX
+				else if (ir == 6)
+				{
+					char read_mem[5];
+
+					//Load sp + x into ac
+					snprintf(tmp_buffer, 10, "r%d", sp + 1 + x);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+					ac = atoi(read_mem);
+				}
+
+				//Store addr
+				else if (ir == 7)
+				{
+					char read_mem[5];
+					pc++;
+
+					//Read next line for addr
+					snprintf(tmp_buffer, 10, "r%d", pc);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Write addr into memory at location ac
+					snprintf(tmp_buffer, 10, "w%d", ac);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					write(cpuToMem[1], &read_mem, 4);
+				}
+
+				//Get
+				else if (ir == 8)
+					ac = (rand() % 100) + 1;
+
 				//Put port
-				if (atoi(inst) == 9)
+				else if (ir == 9)
 				{
 					char read_mem[5];
 					pc++;
@@ -273,29 +340,53 @@ int main(int argc, char *argv[])
 					//Check value of port
 					if (atoi(read_mem) == 1)
 						printf("%d", ac);
+
 					if (atoi(read_mem) == 2)
 						printf("%c", ac);
-						
 				}
 
 				//AddX
-				if(atoi(inst) == 10)
+				else if (ir == 10)
 					ac += x;
 
 				//AddY
-				if(atoi(inst) == 11)
+				else if (ir == 11)
 					ac += y;
 
+				//SubX
+				else if (ir == 12)
+					ac -= x;
+
+				//SubY
+				else if (ir == 13)
+					ac -= y;
+
 				//CopyToX
-				if (atoi(inst) == 14)
+				else if (ir == 14)
 					x = ac;
 
+				//CopyFromX
+				else if (ir == 15)
+					ac = x;
+
 				//CopyToY
-				if(atoi(inst) == 16)
+				else if (ir == 16)
 					y = ac;
 
+				//CopyFromY
+				else if (ir == 17)
+					ac = y;
+
+				//CopyToSp
+				else if (ir == 18)
+					sp = ac;
+
+				//CopyFromSp
+				else if (ir == 19)
+					ac = sp;
+
 				//Jump addr
-				if(atoi(inst) == 20)
+				else if (ir == 20)
 				{
 					char read_mem[5];
 					pc++;
@@ -310,7 +401,7 @@ int main(int argc, char *argv[])
 				}
 
 				//JumpIfEqual
-				if (atoi(inst) == 21)
+				else if (ir == 21)
 				{
 					char read_mem[5];
 					pc++;
@@ -320,6 +411,7 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
+					//Change value of pc (jump) if ac = 0
 					if (ac == 0)
 					{
 						pc = atoi(read_mem);
@@ -327,13 +419,119 @@ int main(int argc, char *argv[])
 					}
 				}
 
+				//JumpIfNotEqual addr
+				else if (ir == 22)
+				{
+					char read_mem[5];
+					pc++;
+
+					//Read next line for addr
+					snprintf(tmp_buffer, 10, "r%d", pc);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Change value of pc (jump) if ac != 0
+					if (ac != 0)
+					{
+						pc = atoi(read_mem);
+						hasJumped = true;
+					}
+				}
+
+				//Call addr
+				else if (ir == 23)
+				{
+					char read_mem[5];
+					pc++;
+
+					//Read next line for addr
+					snprintf(tmp_buffer, 10, "r%d", pc);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Write return addr into stack at location sp
+					snprintf(tmp_buffer, 10, "w%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					snprintf(tmp_buffer, 10, "%d", pc + 1);
+					write(cpuToMem[1], &tmp_buffer, 4);
+					sp--;
+
+					pc = atoi(read_mem);
+					hasJumped = true;
+				}
+
+				//Ret
+				else if (ir == 24)
+				{
+					char read_mem[5];
+					sp++;
+
+					//Read top of stack
+					snprintf(tmp_buffer, 10, "r%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Read into pc (jump)
+					pc = atoi(read_mem);
+					hasJumped = true;
+				}
+
 				//IncX
-				if(atoi(inst) == 25)
+				else if (ir == 25)
 					x++;
 
+				//DecX
+				else if (ir == 26)
+					x--;
+
+				//Push
+				else if (ir == 27)
+				{
+					//Write ac into stack at location sp
+					snprintf(tmp_buffer, 10, "w%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					snprintf(tmp_buffer, 10, "%d", ac);
+					write(cpuToMem[1], &tmp_buffer, 4);
+					sp--;
+				}
+
+				//Pop
+				else if (ir == 28)
+				{
+					char read_mem[5];
+					sp++;
+
+					//Read top of stack
+					snprintf(tmp_buffer, 10, "r%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Read into ac
+					ac = atoi(read_mem);
+				}
+
+				//Int
+				else if (ir == 29)
+				{
+				}
+
+				//IRet
+				else if (ir == 30)
+				{
+				}
+
 				//End
-				if(atoi(inst) == 50)
+				else if (ir == 50)
+				{
+					//Close all pipes
+					close(cpuToMem[0]);
+					close(cpuToMem[1]);
+					close(memToCpu[0]);
+					close(memToCpu[1]);
+
+					//Exit
 					return 0;
+				}
 
 				//Advance to next instruction if no jumps done
 				if (!hasJumped)
