@@ -27,10 +27,6 @@ int main(int argc, char *argv[])
 	//Seed for random number
 	srand(time(0));
 
-	//Filename and interrupt
-	char *filename = argv[1];
-	int timer = *argv[2];
-
 	//Creating pipes for sending data from CPU to memory and vice versa
 	int cpuToMem[2]; //Pipe for cpu to memory
 	int memToCpu[2]; //Pipe for memory to cpu
@@ -54,6 +50,9 @@ int main(int argc, char *argv[])
 	//Memory
 	else if (pid == 0)
 	{
+		//Get filename from arguments
+		char *filename = argv[1];
+
 		//Integer entries
 		int mem_arr[2000];
 
@@ -153,6 +152,9 @@ int main(int argc, char *argv[])
 	//CPU
 	else
 	{
+		//Get timer from arguments
+		int timer = atoi(argv[2]);
+
 		//Registers
 		int pc;
 		int sp;
@@ -169,35 +171,71 @@ int main(int argc, char *argv[])
 		int inst_counter = 0;
 		bool usr = true;
 		bool intr = false;
+		int num_intr_waiting = 0;
 
 		//Default values
-		char inst[5] = {'\0', '\0', '\0', '\0', '\0'};
 		pc = 0;
 		sp = usr_stack_top;
 
 		//Executing instructions
 		while (true)
 		{
-			for (int i = 0; i < 5; i++)
-				inst[i] = '\0';
+			//Instruction buffer
+			char inst[5] = {'\0', '\0', '\0', '\0', '\0'};
 
-			//Check for interrupt
-			if (!intr && inst_counter > 0 && (inst_counter % timer) == 0)
-			{
-				usr = false;
-				intr = true;
-			}
-
-			//Get next instruction from memory
+			//Buffer used for sending read or write commands to memory with addr
 			char tmp_buffer[10] = {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'};
-			snprintf(tmp_buffer, 10, "r%d", pc);
-			write(cpuToMem[1], &tmp_buffer, 5);
-			read(memToCpu[0], &inst, 4);
 
 			//Check if jump instruction is used
 			bool hasJumped = false;
 
-			//If the instruction does not return empty
+			//Check if there is another interrupt scheduled while this interrupt is going on
+			if(intr && inst_counter > 0 && (inst_counter % timer) == 0)
+				num_intr_waiting++;
+
+			//Check for timer interrupt
+			if ((!intr && inst_counter > 0 && (inst_counter % timer) == 0) || (!intr && num_intr_waiting))
+			{
+				//Set mode to interrupt mode
+				usr = false;
+				intr = true;
+
+				//Reduce number of interrupts waiting
+				num_intr_waiting--;
+
+				//User values for pc and sp
+				int usr_sp = sp;
+				int usr_pc = pc;
+
+				//Set sp to system stack top and pc to 1000 and write original values onto stack
+				sp = sys_stack_top;
+				pc = 1000;
+				hasJumped = true;
+
+				//Write user sp into memory at sp
+				snprintf(tmp_buffer, 10, "w%d", sp);
+				write(cpuToMem[1], &tmp_buffer, 5);
+				snprintf(tmp_buffer, 10, "%d", usr_sp);
+				write(cpuToMem[1], &tmp_buffer, 4);
+				sp--;
+
+				//Write user pc into memory at sp
+				snprintf(tmp_buffer, 10, "w%d", sp);
+				write(cpuToMem[1], &tmp_buffer, 5);
+				snprintf(tmp_buffer, 10, "%d", usr_pc);
+				write(cpuToMem[1], &tmp_buffer, 4);
+				sp--;
+
+				continue;
+			}
+
+			//Get next instruction from memory (Fetch)
+			snprintf(tmp_buffer, 10, "r%d", pc);
+			write(cpuToMem[1], &tmp_buffer, 5);
+			read(memToCpu[0], &inst, 4);
+			inst_counter++;
+
+			//If the instruction does not return empty (Execute)
 			if (inst[0] != '\0')
 			{
 				//Load instruction into ir
@@ -226,8 +264,8 @@ int main(int argc, char *argv[])
 					read(memToCpu[0], &read_mem, 4);
 
 					//Attempting to load from system memory
-					if (atoi(read_mem) > 999)
-						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					if (atoi(read_mem) > 999 && usr)
+						printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 					else
 					{
 						//Load addr into ac
@@ -250,8 +288,8 @@ int main(int argc, char *argv[])
 					read(memToCpu[0], &read_mem, 4);
 
 					//Attempting to load from system memory
-					if (atoi(read_mem) > 999)
-						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					if (atoi(read_mem) > 999 && usr)
+						printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 					else
 					{
 						//Load addr into ac
@@ -261,8 +299,8 @@ int main(int argc, char *argv[])
 						ac = atoi(read_mem);
 
 						//Attempting to load from system memory
-						if (atoi(read_mem) > 999)
-							printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+						if (atoi(read_mem) > 999 && usr)
+							printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 						else
 						{
 							//Load ac address into ac
@@ -286,8 +324,8 @@ int main(int argc, char *argv[])
 					read(memToCpu[0], &read_mem, 4);
 
 					//Attempting to load from system memory
-					if (x + atoi(read_mem) > 999)
-						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					if (x + atoi(read_mem) > 999 && usr)
+						printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 					else
 					{
 						//Load x + addr into ac
@@ -310,8 +348,8 @@ int main(int argc, char *argv[])
 					read(memToCpu[0], &read_mem, 4);
 
 					//Attempting to load from system memory
-					if (y + atoi(read_mem) > 999)
-						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					if (y + atoi(read_mem) > 999 && usr)
+						printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 					else
 					{
 						//Load y + addr into ac
@@ -328,8 +366,8 @@ int main(int argc, char *argv[])
 					char read_mem[5];
 
 					//Attempting to load from system memory
-					if (x + sp > 999)
-						printf("Memory violation: accessing system address %d in user mode.", atoi(read_mem));
+					if (x + sp > 999 && !intr)
+						printf("Memory violation: accessing system address %d in user mode.\n", atoi(read_mem));
 					else
 					{
 						//Load sp + x into ac
@@ -351,10 +389,11 @@ int main(int argc, char *argv[])
 					write(cpuToMem[1], &tmp_buffer, 5);
 					read(memToCpu[0], &read_mem, 4);
 
-					//Write addr into memory at location ac
-					snprintf(tmp_buffer, 10, "w%d", ac);
+					//Write ac into memory at location addr
+					snprintf(tmp_buffer, 10, "w%d", atoi(read_mem));
 					write(cpuToMem[1], &tmp_buffer, 5);
-					write(cpuToMem[1], &read_mem, 4);
+					snprintf(tmp_buffer, 10, "%d", ac);
+					write(cpuToMem[1], &tmp_buffer, 4);
 				}
 
 				//Get
@@ -546,13 +585,63 @@ int main(int argc, char *argv[])
 				}
 
 				//Int
-				else if (ir == 29)
+				else if (ir == 29 && !intr)
 				{
+					//Set mode to interrupt mode
+					usr = false;
+					intr = true;
+
+					//User values for pc and sp
+					int usr_sp = sp;
+					int usr_pc = pc + 1;
+
+					//Set sp to system stack top and pc to 1500 and write original values onto stack
+					sp = sys_stack_top;
+					pc = 1500;
+					hasJumped = true;
+
+					//Write user sp into memory at sp
+					snprintf(tmp_buffer, 10, "w%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					snprintf(tmp_buffer, 10, "%d", usr_sp);
+					write(cpuToMem[1], &tmp_buffer, 4);
+					sp--;
+
+					//Write user pc into memory at sp
+					snprintf(tmp_buffer, 10, "w%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					snprintf(tmp_buffer, 10, "%d", usr_pc);
+					write(cpuToMem[1], &tmp_buffer, 4);
+					sp--;
 				}
 
 				//IRet
 				else if (ir == 30)
 				{
+					usr = true;
+					intr = false;
+
+					char read_mem[5];
+					sp++;
+
+					//Read top of stack
+					snprintf(tmp_buffer, 10, "r%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Read into pc (jump)
+					pc = atoi(read_mem);
+					hasJumped = true;
+
+					sp++;
+
+					//Read top of stack
+					snprintf(tmp_buffer, 10, "r%d", sp);
+					write(cpuToMem[1], &tmp_buffer, 5);
+					read(memToCpu[0], &read_mem, 4);
+
+					//Read into sp (jump)
+					sp = atoi(read_mem);
 				}
 
 				//End
@@ -571,8 +660,6 @@ int main(int argc, char *argv[])
 				//Advance to next instruction if no jumps done
 				if (!hasJumped)
 					pc++;
-
-				inst_counter++;
 			}
 		}
 	}

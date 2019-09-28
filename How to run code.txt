@@ -1,1 +1,3 @@
-Note: Run with -std=c11
+gcc proj_1.c -std=gnu99
+
+./a.out (filename) (timer)
